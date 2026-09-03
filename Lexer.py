@@ -80,7 +80,30 @@ class Lexer:
 
     def __init__(self, source: str):
         self.source = source
-        # TODO: inicialize aqui o estado exigido por sua estratégia.
+        self.pos = 0
+        self.line = 1
+        self.column = 1
+        self.lenght = len(source)
+
+    def is_at_end(self) -> bool:
+        return self.pos >= self.lenght
+
+    def peek(self, offset = 0) -> str:
+        if self.pos + offset >= self.lenght:
+            return "\0"
+        return self.source[self.pos + offset]
+
+    def advance(self) -> str:
+        if self.is_at_end():
+            return "\0"
+        char = self.source[self.pos]
+        self.pos += 1
+        if char == "\n":
+            self.line += 1
+            self.column = 1
+        else:
+            self.column += 1
+        return char
 
     def tokens(self) -> Iterator[Token]:
         """Produza todos os tokens significativos e um único EOF ao final."""
