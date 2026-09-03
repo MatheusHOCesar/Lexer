@@ -78,18 +78,34 @@ class LexerError(Exception):
 class Lexer:
     """Converte texto-fonte MicroC em uma sequência de tokens."""
 
+    COMPOUND_OPS = {
+        '=': ('=', TokenKind.EQUAL_EQUAL, TokenKind.ASSIGN),
+        '!': ('=', TokenKind.NOT_EQUAL, TokenKind.LOGICAL_NOT),
+        '<': ('=', TokenKind.LESS_EQUAL, TokenKind.LESS),
+        '>': ('=', TokenKind.GREATER_EQUAL, TokenKind.GREATER),
+        '&': ('&', TokenKind.LOGICAL_AND, None),
+        '|': ('|', TokenKind.LOGICAL_OR, None)
+    }
+
+    SINGLE_OPS = {
+        '+': TokenKind.PLUS, '-': TokenKind.MINUS, '*': TokenKind.STAR,
+        '/': TokenKind.SLASH, '%': TokenKind.PERCENT, '(': TokenKind.LEFT_PAREN,
+        ')': TokenKind.RIGHT_PAREN, '{': TokenKind.LEFT_BRACE, '}': TokenKind.RIGHT_BRACE,
+        ',': TokenKind.COMMA, ';': TokenKind.SEMICOLON
+    }
+
     def __init__(self, source: str):
         self.source = source
         self.pos = 0
         self.line = 1
         self.column = 1
-        self.lenght = len(source)
+        self.length = len(source)
 
     def is_at_end(self) -> bool:
-        return self.pos >= self.lenght
+        return self.pos >= self.length
 
     def peek(self, offset = 0) -> str:
-        if self.pos + offset >= self.lenght:
+        if self.pos + offset >= self.length:
             return "\0"
         return self.source[self.pos + offset]
 
@@ -104,6 +120,26 @@ class Lexer:
         else:
             self.column += 1
         return char
+
+    def scan_operator_and_punctuation(self) -> Token:
+        start_line, start_col = self.line, self.column
+        char = self.advance()
+        next_char = self.peek()
+
+        if char in self.COMPOUND_OPS:
+            expected, kind_of_match, kind_if_not = self.COMPOUND_OPS[char]
+            if next_char == expected:
+                self.advance()
+                return Token(kind_of_match, char + expected, None, start_line, start_col)
+            if kind_if_not:
+                return Token(kind_if_not, char, None, start_line, start_col)
+
+            raise LexerError(f"caractere invalido", start_line, start_col)
+
+        if char in self.SINGLE_OPS:
+            return Token(self.SINGLE_OPS[char], char, None, start_line, start_col)
+
+        raise LexerError(f"caractere invalido", start_line, start_col)
 
     def tokens(self) -> Iterator[Token]:
         """Produza todos os tokens significativos e um único EOF ao final."""
