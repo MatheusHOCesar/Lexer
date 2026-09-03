@@ -121,6 +121,15 @@ class Lexer:
             self.column += 1
         return char
 
+    def skip_whitespace_and_comments(self):
+        while not self.is_at_end():
+            char = self.peek()
+            if char in (' ', '\t', '\r', '\n'):
+                self.advance()
+            else:
+                break
+
+
     def scan_operator_and_punctuation(self) -> Token:
         start_line, start_col = self.line, self.column
         char = self.advance()
