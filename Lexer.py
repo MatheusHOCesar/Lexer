@@ -152,8 +152,25 @@ class Lexer:
 
     def tokens(self) -> Iterator[Token]:
         """Produza todos os tokens significativos e um único EOF ao final."""
-        raise NotImplementedError("implemente o analisador léxico")
-        yield  # mantém este método como gerador durante o desenvolvimento
+        while not self.is_at_end():
+            self.skip_whitespace_and_comments()
+            if self.is_at_end():
+                break
+
+            char = self.peek()
+
+            if char.isalpha() or char == '_':
+                yield self.scan_identifier_or_keyword()
+            elif char.isdigit():
+                yield self.scan_number()
+            elif char == '"':
+                yield self.scan_string()
+            elif ord(char) > 127:
+                raise LexerError(f"caractere invalido", self.line, self.column)
+            else:
+                yield self.scan_operator_and_punctuation()
+
+        yield Token(TokenKind.EOF, "", None, self.line, self.column)
 
     def scan(self) -> list[Token]:
         return list(self.tokens())
