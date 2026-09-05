@@ -77,6 +77,12 @@ class LexerError(Exception):
 
 class Lexer:
     """Converte texto-fonte MicroC em uma sequência de tokens."""
+    KEYWORDS = {
+        "int": TokenKind.KW_INT, "bool": TokenKind.KW_BOOL, "void": TokenKind.KW_VOID,
+        "true": TokenKind.KW_TRUE, "false": TokenKind.KW_FALSE, "if": TokenKind.KW_IF,
+        "else": TokenKind.KW_ELSE, "while": TokenKind.KW_WHILE, "return": TokenKind.KW_RETURN,
+        "print": TokenKind.KW_PRINT
+    }
 
     COMPOUND_OPS = {
         '=': ('=', TokenKind.EQUAL_EQUAL, TokenKind.ASSIGN),
@@ -128,8 +134,33 @@ class Lexer:
                 self.advance()
             else:
                 break
+    
+    def scan_identifier_or_keyword(self) -> Token:
+        start_line, start_col = self.line, self.column
+        lexeme_chars = []
+        
+        while self.peek().isalnum() or self.peek() == '_':
+            lexeme_chars.append(self.advance())
+            
+        lex_str = "".join(lexeme_chars)
+        
+        if lex_str in self.KEYWORDS:
+            kind = self.KEYWORDS[lex_str]
+            val = True if lex_str == "true" else False if lex_str == "false" else None
+            return Token(kind, lex_str, val, start_line, start_col)
+            
+        return Token(TokenKind.IDENTIFIER, lex_str, lex_str, start_line, start_col)
 
-
+    def scan_number(self) -> Token:
+        start_line, start_col = self.line, self.column
+        lexeme_chars = []
+        
+        while self.peek().isdigit():
+            lexeme_chars.append(self.advance())
+            
+        lex_str = "".join(lexeme_chars)
+        return Token(TokenKind.INT_LITERAL, lex_str, int(lex_str), start_line, start_col)
+    
     def scan_operator_and_punctuation(self) -> Token:
         start_line, start_col = self.line, self.column
         char = self.advance()
