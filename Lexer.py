@@ -119,6 +119,8 @@ class Lexer:
         if self.is_at_end():
             return "\0"
         char = self.source[self.pos]
+        if ord(char) > 127:
+            raise LexerError("caractere nao ASCII", self.line, self.column)
         self.pos += 1
         if char == "\n":
             self.line += 1
@@ -130,7 +132,24 @@ class Lexer:
     def skip_whitespace_and_comments(self):
         while not self.is_at_end():
             char = self.peek()
+            next_char = self.peek(1)
             if char in (' ', '\t', '\r', '\n'):
+                self.advance()
+            elif char == '/' and next_char == '/':
+                # Comentário de linha
+                while not self.is_at_end() and self.peek() != '\n':
+                    self.advance()
+            elif char == '/' and next_char == '*':
+                start_line, start_col = self.line, self.column
+                self.advance() 
+                self.advance() 
+                
+                while not (self.peek() == '*' and self.peek(1) == '/'):
+                    if self.is_at_end():
+                        raise LexerError("comentario de bloco nao terminado", start_line, start_col)
+                    self.advance()
+                
+                self.advance() 
                 self.advance()
             else:
                 break
@@ -181,6 +200,42 @@ class Lexer:
 
         raise LexerError(f"caractere invalido", start_line, start_col)
 
+    # --- SEU CÓDIGO: NOVO MÉTODO NA CLASSE ---
+    def scan_string(self) -> Token:
+        start_line, start_col = self.line, self.column
+        self.advance() # Consome a aspa dupla inicial
+        
+        value_chars = []
+        lexeme_chars = ['"']
+        
+        while self.peek() != '"':
+            if self.is_at_end():
+                raise LexerError("string nao terminada", start_line, start_col)
+            
+            char = self.peek()
+            if char == '\n':
+                raise LexerError("quebra de linha em string", self.line, self.column)
+                
+            char = self.advance()
+            lexeme_chars.append(char)
+            
+            if char == '\\':
+                escape = self.advance()
+                lexeme_chars.append(escape)
+                if escape == 'n': value_chars.append('\n')
+                elif escape == 't': value_chars.append('\t')
+                elif escape == '"': value_chars.append('"')
+                elif escape == '\\': value_chars.append('\\')
+                else:
+                    raise LexerError("escape invalido", self.line, self.column - 2)
+            else:
+                value_chars.append(char)
+                
+        self.advance() # Consome a aspa dupla final
+        lexeme_chars.append('"')
+        
+        return Token(TokenKind.STRING_LITERAL, "".join(lexeme_chars), "".join(value_chars), start_line, start_col)
+
     def tokens(self) -> Iterator[Token]:
         """Produza todos os tokens significativos e um único EOF ao final."""
         while not self.is_at_end():
@@ -196,8 +251,6 @@ class Lexer:
                 yield self.scan_number()
             elif char == '"':
                 yield self.scan_string()
-            elif ord(char) > 127:
-                raise LexerError(f"caractere invalido", self.line, self.column)
             else:
                 yield self.scan_operator_and_punctuation()
 
@@ -205,4 +258,3 @@ class Lexer:
 
     def scan(self) -> list[Token]:
         return list(self.tokens())
-
